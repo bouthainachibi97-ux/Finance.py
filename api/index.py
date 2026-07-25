@@ -4,11 +4,20 @@ from typing import List, Dict, Optional
 import numpy as np
 import pandas as pd
 
+# إسناد التطبيق بوضوح لمتغير باسم app
 app = FastAPI(
     title="FP&A Advanced Financial Engine API",
     description="API لتشغيل المحرك المالي المتقدم وتوقع السيولة والأرباح",
     version="1.0.0"
 )
+
+# مسار اختباري للتأكد من أن السيرفر يعمل على Vercel
+@app.get("/")
+def read_root():
+    return {
+        "status": "online",
+        "message": "FP&A Engine API is running successfully on Vercel!"
+    }
 
 # ---------------------------------------------------------
 # 1. تعريف نماذج البيانات المدخلة والمخرجة (Pydantic Models)
@@ -23,16 +32,12 @@ class FPAInputs(BaseModel):
     initial_cash: float = Field(..., description="السيولة النقدية البدائية")
     cogs_payment_delay: Optional[int] = Field(1, description="تأخير سداد الموردين بالأشهر")
     
-    # المعلمات المتقدمة
     annual_inflation_rate: Optional[float] = Field(0.05, description="معدل التضخم السنوي المتوقع")
     fx_rate_change: Optional[float] = Field(0.0, description="نسبة تغير سعر الصرف للمواد الخام المستوردة")
     fx_cogs_weight: Optional[float] = Field(0.40, description="نسبة المادة الخام المستوردة من التكلفة المتغيرة")
     bad_debt_rate: Optional[float] = Field(0.03, description="نسبة الديون المعدومة غير المقبوضة")
     
-    # خطة شراء الأصول: {الشهر: [التكلفة, العمر_بالسنوات]}
-    # نستخدم Dict[str, List[float]] لأن مفاتيح JSON تكون دائماً نصية
     capex_plan: Optional[Dict[str, List[float]]] = Field(None, description="خطة الاستثمار الرأسمالي {الشهر: [التكلفة, العمر]}")
-    
     tax_rate: Optional[float] = Field(0.25, description="نسبة ضريبة أرباح الشركات")
     tax_payment_months: Optional[List[int]] = Field([3, 9], description="الأشهر التي تُسدد فيها الضريبة (0-indexed)")
     min_safety_cash: Optional[float] = Field(5000, description="حد الأمان النقدي للتنبيهات")
@@ -46,7 +51,6 @@ def run_fpa_endpoint(data: FPAInputs):
     months = len(data.sales_units)
     monthly_inflation = (1 + data.annual_inflation_rate) ** (1/12) - 1
     
-    # تهيئة جداول الحسابات
     revenue = np.zeros(months)
     variable_costs = np.zeros(months)
     fixed_costs_adjusted = np.zeros(months)
